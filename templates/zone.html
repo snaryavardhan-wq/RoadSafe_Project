@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Mark the danger zone{% endblock %}
+{% block content %}
+<h1>Mark the junction area</h1>
+<p class="lead">Click around the part of the road you want to monitor, such as the junction and its approaches.
+Only events inside this area are counted. You can also skip this and analyze the whole frame.</p>
+
+<div class="zone-wrap" id="wrap">
+  <img id="img" src="{{ url_for('frame_image', name=name) }}" alt="First frame of the video">
+  <canvas id="cv"></canvas>
+</div>
+<p id="hint" class="muted">Click on the image to add corner points. At least 3 points are needed.</p>
+<p class="actions">
+  <button type="button" id="undo">Undo last point</button>
+  <button type="button" id="clear" class="alt-btn">Clear points</button>
+  <button type="button" id="save">Save zone and analyze</button>
+  <a class="btn alt" id="whole" href="{{ url_for('analyze', name=name) }}">Analyze whole frame</a>
+</p>
+
+<script>
+const name = {{ name|tojson }};
+let pts = {{ (existing or [])|tojson }};
+const img = document.getElementById("img"), cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+
+function size() { cv.width = img.clientWidth; cv.height = img.clientHeight; draw(); }
+function draw() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (!pts.length) return;
+  ctx.beginPath();
+  pts.forEach((p, i) => { const x = p[0] * cv.width, y = p[1] * cv.height; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  if (pts.length >= 3) { ctx.closePath(); ctx.fillStyle = "rgba(255,196,0,.25)"; ctx.fill(); }
+  ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 3; ctx.stroke();
+  pts.forEach(p => { ctx.beginPath(); ctx.arc(p[0] * cv.width, p[1] * cv.height, 6, 0, 7);
+    ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = "#111"; ctx.lineWidth = 2; ctx.stroke(); });
+}
+cv.addEventListener("click", e => {
+  const r = cv.getBoundingClientRect();
+  pts.push([(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]);
+  draw();
+});
+document.getElementById("undo").onclick = () => { pts.pop(); draw(); };
+document.getElementById("clear").onclick = () => { pts = []; draw(); };
+document.getElementById("save").onclick = async () => {
+  const hint = document.getElementById("hint");
+  if (pts.length < 3) { hint.textContent = "Add at least 3 points before saving."; return; }
+  const r = await fetch("/api/zone/" + name, { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ points: pts }) });
+  if (r.ok) location.href = "/analyze/" + name; else hint.textContent = (await r.json()).error;
+};
+document.getElementById("whole").onclick = async e => {
+  e.preventDefault();
+  await fetch("/api/zone/" + name, { method: "DELETE" });
+  location.href = "/analyze/" + name;
+};
+img.addEventListener("load", size); window.addEventListener("resize", size);
+if (img.complete) size();
+</script>
+{% endblock %}

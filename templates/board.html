@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Warning board{% endblock %}
+{% block content %}
+<h1>Roadside warning board (simulated)</h1>
+<p class="lead">This panel stands in for an LED sign at the junction. It shows the most serious
+alert from the last 10 seconds. Open an analysis in another tab and watch it change.</p>
+<div id="board" class="board clear">
+  <div class="board-title">ROAD CLEAR</div>
+  <div class="board-msg">No risky movement detected</div>
+</div>
+<script>
+async function tick() {
+  try {
+    const b = await (await fetch("/api/board")).json();
+    const el = document.getElementById("board");
+    el.className = "board " + b.level;
+    el.querySelector(".board-title").textContent = b.title;
+    el.querySelector(".board-msg").textContent = b.message;
+  } catch (e) {}
+  setTimeout(tick, 1000);
+}
+tick();
+</script>
+{% endblock %}

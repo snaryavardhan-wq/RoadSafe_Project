@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Check a road video for risky vehicle behaviour</h1>
+<p class="lead">Upload a clip from a junction or highway camera, mark the area to monitor, and RoadSafe
+tracks vehicles, ignores parked ones, warns when two moving vehicles are predicted to make contact,
+and produces a junction risk report.</p>
+
+<form class="upload" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+  <input type="file" name="video" accept=".mp4,.avi,.mov,.mkv" required>
+  <button type="submit">Upload and continue</button>
+</form>
+
+<section class="stats">
+  <div><b>{{ stats.total or 0 }}</b> candidate alerts</div>
+  <div class="high"><b>{{ stats.high or 0 }}</b> high risk</div>
+  <div class="med"><b>{{ stats.medium or 0 }}</b> medium risk</div>
+</section>
+
+<h2>Analyzed videos</h2>
+{% if videos %}
+<table>
+  <tr><th>Video</th><th>Vehicles</th><th>Alerts</th><th>Analyzed</th><th></th></tr>
+  {% for v in videos %}
+  <tr>
+    <td>{{ v.video_name }}</td><td>{{ v.vehicles }}</td><td>{{ v.n }}</td><td>{{ v.analyzed_at }}</td>
+    <td><a href="{{ url_for('report', name=v.video_name) }}">Risk report</a>
+      · <a href="{{ url_for('analytics', video=v.video_name) }}">Analytics</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">No videos analyzed yet. Upload one above to get started.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% macro bars(items, cls="") %}
+  {% set top = (items | map(attribute=1) | max) if items else 1 %}
+  <ul class="bars {{ cls }}">
+  {% for label, n in items %}
+    <li><span class="lbl">{{ label }}</span>
+        <span class="track"><span class="fill" style="width: {{ (n / top * 100) | round }}%"></span></span>
+        <span class="num">{{ n }}</span></li>
+  {% endfor %}
+  </ul>
+{% endmacro %}
+{% block content %}
+<h1>Analytics</h1>
+<form method="get" class="filters-form">
+  <label>Video
+    <select name="video" onchange="this.form.submit()">
+      <option value="">All videos</option>
+      {% for v in videos %}<option value="{{ v }}" {{ 'selected' if v == video else '' }}>{{ v }}</option>{% endfor %}
+    </select>
+  </label>
+  <a class="btn alt" href="{{ url_for('export_csv') }}">Export CSV</a>
+</form>
+
+{% if total == 0 %}
+<p class="muted">No alerts to summarize. Analyze a video first.</p>
+{% else %}
+<section class="stats">
+  <div><b>{{ total }}</b> alerts</div>
+  <div class="high"><b>{{ (by_risk | selectattr(0, 'equalto', 'High') | map(attribute=1) | list | first) or 0 }}</b> high risk</div>
+  <div><b>{{ '%.1f' % min_ttc + 's' if min_ttc is not none else 'n/a' }}</b> shortest predicted time-to-contact</div>
+</section>
+
+<div class="grid2">
+  <div><h2>By risk level</h2>{{ bars(by_risk) }}</div>
+  <div><h2>By event type</h2>{{ bars(by_event) }}</div>
+  <div><h2>By vehicle type</h2>{{ bars(by_vehicle) }}</div>
+</div>
+
+<h2>Alerts over video time (5-second intervals)</h2>
+{% if timeline %}{{ bars(timeline, "timeline") }}
+{% else %}<p class="muted">Timeline data is only recorded for alerts created with version 2.</p>{% endif %}
+{% endif %}
+{% endblock %}

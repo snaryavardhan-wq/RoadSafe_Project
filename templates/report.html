@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Junction risk report{% endblock %}
+{% block content %}
+<div class="noprint actions">
+  <button type="button" onclick="window.print()">Print or save as PDF</button>
+  <a class="btn alt" href="{{ url_for('export_csv', video=r.name) }}">Export this video's alerts (CSV)</a>
+</div>
+
+<h1>Junction risk report</h1>
+<p class="muted">Video {{ r.name }}, analyzed {{ r.analyzed_at }}.
+  {{ 'Monitoring area: marked danger zone.' if r.zone_used else 'Monitoring area: whole frame.' }}</p>
+
+<section class="verdict {{ r.rating|lower|replace(' ', '-') }}">
+  <div class="v-label">Indicative risk rating</div>
+  <div class="v-value">{{ r.rating }}</div>
+  <div class="v-note">
+    {% if r.index is not none %}
+      Risk index {{ '%.1f' % r.index }} per 100 vehicles
+      (High events count 3, Medium count 1). Moderate starts at {{ moderate }}, High at {{ high_t }}.
+    {% else %}No vehicles were counted, so no index can be calculated.{% endif %}
+  </div>
+</section>
+
+<p class="lead">In {{ '%.0f' % r.duration }} seconds of footage, {{ r.vehicles }} vehicles were tracked.
+  {{ r.total }} candidate risk events were recorded: {{ r.high }} high and {{ r.med }} medium.
+  {% if r.peak %}The busiest interval was {{ r.peak[0] }} of the video, with {{ r.peak[1] }} event(s).{% endif %}</p>
+
+<section class="stats">
+  <div><b>{{ r.vehicles }}</b> vehicles tracked</div>
+  <div class="high"><b>{{ r.high }}</b> high risk</div>
+  <div class="med"><b>{{ r.med }}</b> medium risk</div>
+  <div><b>{{ '%.0f' % r.per_hour if r.per_hour is not none else 'n/a' }}</b> weighted events per hour</div>
+  <div><b>{{ '%.1fs' % r.min_ttc if r.min_ttc is not none else 'n/a' }}</b> shortest predicted contact time</div>
+</section>
+
+<div class="grid2">
+  <div>
+    <h2>Where events happened</h2>
+    {% if r.has_frame %}
+    <div class="map">
+      <img src="{{ url_for('frame_image', name=r.name) }}" alt="Road view with event locations">
+      {% if r.zone_svg %}
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="{{ r.zone_svg }}"/></svg>
+      {% endif %}
+      {% for d in r.dots %}<span class="dot {{ d.risk }}" style="left:{{ d.x }}%;top:{{ d.y }}%"></span>{% endfor %}
+    </div>
+    <p class="muted">Red dots are high risk, orange are medium. The outline is the monitored zone.</p>
+    {% else %}<p class="muted">The reference frame is not available for this video.</p>{% endif %}
+  </div>
+  <div>
+    <h2>Vehicle mix</h2>
+    <ul class="plain">{% for t, n in r.by_type.items() %}<li>{{ t }}: {{ n }}</li>{% else %}<li class="muted">None counted</li>{% endfor %}</ul>
+    <h2>Event types</h2>
+    <ul class="plain">{% for t, n in r.by_event %}<li>{{ t }}: {{ n }}</li>{% else %}<li class="muted">No events</li>{% endfor %}</ul>
+  </div>
+</div>
+
+<h2>Event list</h2>
+{% if alerts %}
+<table>
+  <tr><th>Video time</th><th>Vehicle</th><th>Event</th><th>Risk</th><th>Predicted contact</th><th>Details</th></tr>
+  {% for a in alerts %}
+  <tr><td>{{ '%.1fs' % a.video_time if a.video_time is not none else '' }}</td>
+    <td>{{ a.vehicle_type }} #{{ a.track_id }}</td><td>{{ a.event_type }}</td>
+    <td class="tag {{ a.risk_level|lower }}">{{ a.risk_level }}</td>
+    <td>{{ '%.1fs' % a.ttc if a.ttc is not none else '' }}</td><td>{{ a.details }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}<p class="muted">No risky events were recorded in this footage.</p>{% endif %}
+
+<h2>Limits of this report</h2>
+<p class="muted">Distances and speeds are measured in image pixels, not metres. Vehicle counts come from
+tracker IDs and can be slightly off when a vehicle is lost and re-detected. The rating is an indicative
+screening score with adjustable thresholds, not a validated safety audit. A short clip describes only
+the period it covers.</p>
+{% endblock %}

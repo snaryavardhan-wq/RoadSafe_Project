@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Analyzing {{ name }}{% endblock %}
+{% block content %}
+<h1>Analysis: {{ name }}</h1>
+<p id="status" class="muted">Loading the model and starting analysis. The first run can take a minute.</p>
+<div class="progress"><div id="bar"></div></div>
+
+<div class="split">
+  <div>
+    <img class="video" src="{{ url_for('stream', name=name) }}" alt="Annotated video stream">
+    <p id="dl" hidden><a class="btn" href="{{ url_for('download', name=name) }}">Download annotated video</a>
+      <a class="btn alt" href="{{ url_for('report', name=name) }}">Open risk report</a>
+      <a class="btn alt" href="{{ url_for('analytics', video=name) }}">View analytics</a></p>
+  </div>
+  <div>
+    <div id="board" class="board clear mini">
+      <div class="board-title">ROAD CLEAR</div>
+      <div class="board-msg">No risky movement detected</div>
+    </div>
+    <h2>Live alerts</h2>
+    <ul id="alerts" class="feed"><li class="muted">No alerts yet.</li></ul>
+  </div>
+</div>
+
+<script>
+const name = {{ name|tojson }};
+async function poll() {
+  try {
+    const r = await fetch("/api/progress/" + name);
+    const d = await r.json();
+    const p = d.progress;
+    const pct = p.total ? Math.min(100, Math.round(p.frame / p.total * 100)) : 0;
+    document.getElementById("bar").style.width = pct + "%";
+    document.getElementById("status").textContent = p.done
+      ? "Analysis finished. " + d.alerts.length + " alert(s) recorded."
+      : "Frame " + p.frame + (p.total ? " of " + p.total : "") + " (" + pct + "%)";
+    if (p.done) document.getElementById("dl").hidden = false;
+
+    const b = document.getElementById("board");
+    b.className = "board mini " + d.board.level;
+    b.querySelector(".board-title").textContent = d.board.title;
+    b.querySelector(".board-msg").textContent = d.board.message;
+
+    const ul = document.getElementById("alerts");
+    if (d.alerts.length) {
+      ul.innerHTML = d.alerts.map(a =>
+        `<li class="${a.risk_level.toLowerCase()}"><b>${a.risk_level}</b> ${a.event_type}
+         <span class="muted">at ${a.video_time != null ? a.video_time.toFixed(1) + "s" : "frame " + a.frame_number}</span><br>${a.details}</li>`).join("");
+    }
+    if (!p.done) setTimeout(poll, 1000);
+  } catch (e) { setTimeout(poll, 3000); }
+}
+poll();
+</script>
+{% endblock %}

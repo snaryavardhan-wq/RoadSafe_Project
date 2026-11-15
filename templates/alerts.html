@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Alert history{% endblock %}
+{% block content %}
+<h1>Alert history</h1>
+<p class="filters">
+  <a href="{{ url_for('alerts') }}" class="{{ '' if risk else 'on' }}">All</a>
+  <a href="{{ url_for('alerts', risk='High') }}" class="{{ 'on' if risk=='High' else '' }}">High</a>
+  <a href="{{ url_for('alerts', risk='Medium') }}" class="{{ 'on' if risk=='Medium' else '' }}">Medium</a>
+</p>
+{% if rows %}
+<table>
+  <tr><th>Time</th><th>Video</th><th>Video time</th><th>Vehicle</th><th>Event</th><th>Risk</th><th>TTC</th><th>Details</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.timestamp }}</td><td>{{ r.video_name }}</td>
+    <td>{{ '%.1fs' % r.video_time if r.video_time is not none else 'frame ' ~ r.frame_number }}</td>
+    <td>{{ r.vehicle_type }} #{{ r.track_id }}</td><td>{{ r.event_type }}</td>
+    <td class="tag {{ r.risk_level|lower }}">{{ r.risk_level }}</td>
+    <td>{{ '%.1fs' % r.ttc if r.ttc is not none else '' }}</td><td>{{ r.details }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">No alerts match. Analyze a video to create some.</p>
+{% endif %}
+<form method="post" action="{{ url_for('clear') }}" onsubmit="return confirm('Delete all alert history?')">
+  <button class="danger" type="submit">Clear history</button>
+</form>
+{% endblock %}
